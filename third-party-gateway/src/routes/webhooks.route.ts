@@ -7,7 +7,7 @@ import { TransactionDto } from '@/dtos/transaction.dto'
 class WebhookRoute implements Routes {
     public path = '/webhooks'
     public router = Router()
-    public webhookController = new WebhooksController()
+    private wbController = new WebhooksController()
 
     constructor() {
         this.initializeRoutes()
@@ -17,7 +17,7 @@ class WebhookRoute implements Routes {
         this.router.post(
             `${this.path}/x-payment`,
             validationMiddleware(TransactionDto, 'body'),
-            this.webhookController.processXPaymentProviderCallback,
+            this.wbController.processXPaymentProviderCallback,
         )
     }
 }

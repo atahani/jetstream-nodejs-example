@@ -33,6 +33,6 @@
       "@utils/*": ["utils/*"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.json", ".env"],
+  "include": ["thirdparty.d.ts","src/**/*.ts", "src/**/*.json", ".env"],
   "exclude": ["node_modules"]
 }

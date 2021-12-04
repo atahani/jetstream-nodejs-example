@@ -1,15 +1,16 @@
 import { NextFunction, Request, Response } from 'express'
-import XPaymentProviderService from '@/services/xPaymentProvider.service'
 import { TransactionDto } from '@/dtos/transaction.dto'
+import NatsService from '@/services/nats.service'
 
 class WebhooksController {
-    public xPaymentService = new XPaymentProviderService()
-
     public processXPaymentProviderCallback = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
-            const transaction: TransactionDto = req.body
-            await this.xPaymentService.processIncomingWebhook(transaction)
-
+            const nService = new NatsService(req.nats)
+            const tran: TransactionDto = req.body
+            // the duplication mechanism is based on msgID, so this should be unique per action + transaction
+            const msgID = `${tran.txId}_${tran.action}`
+            const subject = `payments.${tran.action.toLowerCase()}`
+            await nService.publishMessage<TransactionDto>(subject, msgID, tran)
             res.status(200).json({ message: 'success' })
         } catch (error) {
             next(error)

@@ -10,19 +10,25 @@ import hpp from 'hpp'
 import morgan from 'morgan'
 import swaggerJSDoc from 'swagger-jsdoc'
 import swaggerUi from 'swagger-ui-express'
+import { connect, NatsConnection } from 'nats'
 import { Routes } from '@interfaces/routes.interface'
 import errorMiddleware from '@middlewares/error.middleware'
 import { logger, stream } from '@utils/logger'
+import NATSMiddleware from './middlewares/nats.middleware'
+import { delay } from 'nats/lib/nats-base-client/util'
 
 class App {
     public app: express.Application
     public port: string | number
     public env: string
+    public natsUri: string
+    public nats: NatsConnection
 
     constructor(routes: Routes[]) {
         this.app = express()
         this.port = process.env.PORT || 3000
         this.env = process.env.NODE_ENV || 'development'
+        this.natsUri = process.env.NATS_URI || 'localhost:4222'
 
         this.initializeMiddlewares()
         this.initializeRoutes(routes)
@@ -30,17 +36,45 @@ class App {
         this.initializeErrorHandling()
     }
 
-    public listen() {
+    public async listen() {
         this.app.listen(this.port, () => {
             logger.info(`=================================`)
             logger.info(`======= ENV: ${this.env} =======`)
             logger.info(`🚀 App listening on the port ${this.port}`)
             logger.info(`=================================`)
         })
+        await this.connectNATS()
+    }
+
+    public async connectNATS() {
+        try {
+            this.nats = await connect({ servers: this.natsUri })
+            logger.info(`successfully connected to NATS server ${this.natsUri}`)
+            // wait and watch if connection closed
+            const err = await this.nats?.closed()
+            if (err) {
+                logger.error(`NATS server connection closed, err=${err.message}, retry to connect after 2 sec ...`, {
+                    err,
+                })
+                await delay(2 * 1000)
+                await this.connectNATS()
+            }
+            return
+        } catch (err) {
+            logger.error("can't connect to NATS server, Please check the NATS server is running, retry after 2 sec", {
+                err,
+            })
+            await delay(2 * 1000)
+            await this.connectNATS()
+        }
     }
 
     public getServer() {
         return this.app
+    }
+
+    public getNATSConnection(): NatsConnection {
+        return this.nats
     }
 
     private initializeMiddlewares() {
@@ -52,6 +86,7 @@ class App {
         this.app.use(express.json())
         this.app.use(express.urlencoded({ extended: true }))
         this.app.use(cookieParser())
+        this.app.use(NATSMiddleware(this))
     }
 
     private initializeRoutes(routes: Routes[]) {
