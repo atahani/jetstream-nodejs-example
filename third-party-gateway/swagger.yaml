@@ -1,0 +1,58 @@
+tags:
+- name: webhooks
+  description: webhooks definitions
+
+paths:
+# [POST] x-payment
+  /webhooks/x-payment:
+    post:
+      tags:
+      - webhooks
+      summary: commit transaction update
+      parameters:
+      - name: body
+        in: body
+        description: transaction Data
+        required: true
+        schema:
+          $ref: '#/definitions/transaction'
+      responses:
+        201:
+          description: 'Created'
+        400:
+          description: 'Bad Request'
+        409:
+          description: 'Conflict'
+        500:
+          description: 'Server Error'
+
+# definitions
+definitions:
+  transaction:
+    type: object
+    required:
+        - txId
+        - action
+        - amount
+        - note
+    properties:
+      txId:
+        type: string
+        description: transaction TxID - UUID
+        example: 41450da7-46ac-438f-9f72-7e2ab6be2d91
+      action:
+        type: string
+        description: action
+        example: NEW
+      amount:
+        type: number
+        description: transaction amount in cents
+        example: 100
+      note:
+        type: string
+        description: note of transaction
+        example: new transaction
+
+schemes:
+ - https
+ - http
