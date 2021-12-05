@@ -5,6 +5,7 @@ const validateEnv = () => {
         NODE_ENV: str(),
         PORT: port(),
         NATS_URI: url(),
+        MONGO_URI: str(),
     })
 }
 

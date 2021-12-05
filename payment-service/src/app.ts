@@ -11,6 +11,7 @@ import morgan from 'morgan'
 import swaggerJSDoc from 'swagger-jsdoc'
 import swaggerUi from 'swagger-ui-express'
 import { connect, NatsConnection } from 'nats'
+import { MongoClient, Db } from 'mongodb'
 import { Routes } from '@interfaces/routes.interface'
 import errorMiddleware from '@middlewares/error.middleware'
 import { logger, stream } from '@utils/logger'
@@ -21,14 +22,18 @@ class App {
     public app: express.Application
     public port: string | number
     public env: string
-    public natsUri: string
-    public nats: NatsConnection
+    private natsUri: string
+    private nats: NatsConnection
+    private mongoUri: string
+    private mongoClient: MongoClient
+    private DB: Db
 
     constructor(routes: Routes[]) {
         this.app = express()
         this.port = process.env.PORT || 3000
         this.env = process.env.NODE_ENV || 'development'
         this.natsUri = process.env.NATS_URI || 'localhost:4222'
+        this.mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/nats_demo'
 
         this.initializeMiddlewares()
         this.initializeRoutes(routes)
@@ -43,6 +48,7 @@ class App {
             logger.info(`🚀 Payment Service listening on the port ${this.port}`)
             logger.info(`=================================`)
         })
+        this.connectToMongo()
         await this.connectNATS()
     }
 
@@ -70,6 +76,23 @@ class App {
         }
     }
 
+    private connectToMongo() {
+        MongoClient.connect(this.mongoUri, async (err, client) => {
+            if (err) {
+                logger.error(
+                    `can't connect to MongoDB, please check the ENV and database, err=${err.message}, reconnect after 2 sec`,
+                    { err },
+                )
+                await delay(2 * 1000)
+                this.connectToMongo()
+            } else {
+                logger.info('successfully connected to MongoDB')
+                this.mongoClient = client
+                this.DB = client.db('nats_demo')
+            }
+        })
+    }
+
     public getServer() {
         return this.app
     }
@@ -78,8 +101,16 @@ class App {
         return this.nats
     }
 
+    public getMongoClient(): MongoClient {
+        return this.mongoClient
+    }
+
+    public getDB(): Db {
+        return this.DB
+    }
+
     private async initialSubscribers() {
-        await new PaymentConsumer(this.nats).start()
+        await new PaymentConsumer(this).start()
     }
 
     private initializeMiddlewares() {

@@ -1,14 +1,15 @@
-import { NatsConnection, JetStreamClient, JSONCodec } from 'nats'
+import { JetStreamClient, JSONCodec } from 'nats'
 import { logger } from '@utils/logger'
 import TransactionService from '@/services/transaction.service'
 import { PaymentMessage } from '@/interfaces/paymentMessage.interface'
+import App from '@/app'
 
 class PaymentConsumer {
     private jsClient: JetStreamClient
     private transactionService: TransactionService
-    constructor(nc: NatsConnection) {
-        this.jsClient = nc.jetstream()
-        this.transactionService = new TransactionService()
+    constructor(app: App) {
+        this.jsClient = app.getNATSConnection().jetstream()
+        this.transactionService = new TransactionService(app)
     }
 
     public async start(): Promise<void> {
